@@ -1,0 +1,11 @@
+data:
+  env_name: "ALE/Pong-v5"
+  total_transitions: 100000
+  num_episodes: 200
+  
+logging:
+  save_dir: "data"  # Relative path
+
+buffer:
+  max_size: 100000
+  state_shape: [4, 84, 84]
