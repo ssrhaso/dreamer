@@ -136,7 +136,7 @@ def collect_episodes(
                 break
         
         # LOGGING FOR EACH EPISODE
-        print(f"EPISODE {episode_num + 1}|{num_episodes} | RETURN: {episode_return:.2f} | TOTAL TRANSITIONS: {total_transitions}")
+        print(f"EPISODE {episode_num + 1}/{num_episodes} | RETURN: {episode_return:.2f} | TOTAL TRANSITIONS: {total_transitions}")
 
         if total_transitions >= target_transitions:
             break
@@ -161,7 +161,8 @@ if __name__ == "__main__":
 
     cfg = load_config(config_path)
     data_cfg = cfg['data']
-    save_path = os.path.join(cfg['logging']['save_dir'], f"replay_buffer_{data_cfg['env_name']}.npz")
+    safe_env_name = cfg['data']['env_name'].replace("/", "_")
+    save_path = os.path.join(cfg['logging']['save_dir'], f"replay_buffer_{safe_env_name}.npz")
 
     collect_episodes(
         env_name = data_cfg['env_name'],
