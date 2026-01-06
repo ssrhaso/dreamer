@@ -91,5 +91,15 @@ class FrozenDinoV2Encoder(nn.Module):
 
 
             
-        
+def extract_batch(
+    self,
+    frames : np.ndarray,
+
+) -> np.ndarray:
+    """ EXTRACT DINOv2 EMBEDDINGS FROM BATCH OF FRAMES 
+
+    INPUT : BATCH OF FRAMES SHAPE (B, 84, 84) OR (B, 4, 84, 84)
+    OUTPUT : BATCH OF EMBEDDINGS SHAPE (B, 384)
+    """
+
          
