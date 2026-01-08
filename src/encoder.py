@@ -169,4 +169,6 @@ def test_encoder():
 
     print("ALL TESTS PASSED!")
     return True
-    
+
+if __name__ == "__main__":
+    test_encoder()
