@@ -118,5 +118,7 @@ def extract_batch(
     else:
         raise ValueError(f"EXPECTED FRAMES DIMENSIONS (B, 84, 84) OR (B, 4, 84, 84), GOT {frames.shape}")
     
+    # FORWARD PASS THROUGH ENCODER OF BATCH OF PROCESSED FRAMES
+    embeddings = self.forward(processed)
+    return embeddings
     
-        
