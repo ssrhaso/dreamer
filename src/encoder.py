@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 from transformers import AutoImageProcessor, AutoModel
-from numpy import np
+import numpy as np
 from typing import Union, Tuple
 
 class FrozenDinoV2Encoder(nn.Module):
