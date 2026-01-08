@@ -16,7 +16,7 @@ class FrozenDinoV2Encoder(nn.Module):
 
     def __init__(
         self,
-        model_name : str = "facebook/dinov2-vit-small",
+        model_name : str = "facebook/dinov2-small",
         device : str = "cuda" if torch.cuda.is_available() else "cpu",
     ):
         super().__init__()
@@ -90,37 +90,37 @@ class FrozenDinoV2Encoder(nn.Module):
         return embeddings
 
 
+                
+    def extract_batch(
+        self,
+        frames : np.ndarray,
+
+    ) -> np.ndarray:
+        """ EXTRACT DINOv2 EMBEDDINGS FROM BATCH OF FRAMES 
+
+        INPUT : BATCH OF FRAMES SHAPE (B, 84, 84) OR (B, 4, 84, 84)
+        OUTPUT : BATCH OF EMBEDDINGS SHAPE (B, 384)
+        """
+
+        # PREPROCESS FRAMES
+
+        if frames.ndim == 3: # (B, 84, 84)
+            processed = np.array([
+                self.preprocess_frame(frames[i]) for i in range(len(frames))
+            ])
             
-def extract_batch(
-    self,
-    frames : np.ndarray,
-
-) -> np.ndarray:
-    """ EXTRACT DINOv2 EMBEDDINGS FROM BATCH OF FRAMES 
-
-    INPUT : BATCH OF FRAMES SHAPE (B, 84, 84) OR (B, 4, 84, 84)
-    OUTPUT : BATCH OF EMBEDDINGS SHAPE (B, 384)
-    """
-
-    # PREPROCESS FRAMES
-
-    if frames.ndim == 3: # (B, 84, 84)
-        processed = np.array([
-            self.preprocess_frame(frames[i]) for i in range(len(frames))
-        ])
         
-    
-    elif frames.ndim == 4:# (B, 4, 84, 84)
-        processed = np.array([
-            self.preprocess_frame(frames[i]) for i in range(len(frames))
-        ])
-    
-    else:
-        raise ValueError(f"EXPECTED FRAMES DIMENSIONS (B, 84, 84) OR (B, 4, 84, 84), GOT {frames.shape}")
-    
-    # FORWARD PASS THROUGH ENCODER OF BATCH OF PROCESSED FRAMES
-    embeddings = self.forward(processed)
-    return embeddings
+        elif frames.ndim == 4:# (B, 4, 84, 84)
+            processed = np.array([
+                self.preprocess_frame(frames[i]) for i in range(len(frames))
+            ])
+        
+        else:
+            raise ValueError(f"EXPECTED FRAMES DIMENSIONS (B, 84, 84) OR (B, 4, 84, 84), GOT {frames.shape}")
+        
+        # FORWARD PASS THROUGH ENCODER OF BATCH OF PROCESSED FRAMES
+        embeddings = self.forward(processed)
+        return embeddings
 
 def test_encoder():
     """ VALIDATION TEST FOR FROZEN DINOv2 ENCODER """
