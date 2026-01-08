@@ -121,4 +121,20 @@ def extract_batch(
     # FORWARD PASS THROUGH ENCODER OF BATCH OF PROCESSED FRAMES
     embeddings = self.forward(processed)
     return embeddings
+
+def test_encoder():
+    """ VALIDATION TEST FOR FROZEN DINOv2 ENCODER """
+    print("TESTING FROZEN DINOv2 ENCODER...")
     
+    # INITIATE ENCODER
+    encoder = FrozenDinoV2Encoder()
+    
+    """ TESTS """
+    # TEST 1 : SINGLE FRAME
+    print ("TEST 1 : SINGLE FRAME")
+    dummy_frame = np.random.randint(0, 256, size = (84, 84), dtype = np.uint8)
+    processed = encoder.preprocess_frame(dummy_frame)
+    print(f"PROCESSED FRAME SHAPE: {processed.shape})")
+    
+    # ASSERT TO CHECK AGAINST EXPECTED SHAPE (84, 84, 3)
+    assert processed.shape == (84, 84, 3), f"EXPECTED PROCESSED FRAME SHAPE (84,84,3), GOT {processed.shape}"
