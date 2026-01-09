@@ -47,10 +47,11 @@ def extract_embeddings(
     print(f"EXTRACTING {num_frames} EMBEDDINGS...")
     print(f"BATCH SIZE : {batch_size}")
     
-    # ALLOCATE MEMORY FOR EMBEDDINGS
+    # PRE LOOP SETUP
     embeddings = np.zeros((num_frames, 384), dtype = np.float32) # DINOv2 BASE EMBEDDING DIM (384) = 100000 x 384 size
     num_batches = (num_frames + batch_size - 1) // batch_size # CEILING DIVISION FOR COMPLETE COVERAGE
     
+    """ EXTRACTION LOOP """
     with tqdm (
         total = num_frames,
         desc = "EXTRACTING EMBEDDINGS",
@@ -59,6 +60,7 @@ def extract_embeddings(
         
         for batch_idx in range(num_batches):
             
+            # BATCH INDICIES (0 - 63, 64 - 127, ...)
             start_idx = batch_idx * batch_size
             end_idx = min(start_idx + batch_size, num_frames)
             
