@@ -5,10 +5,10 @@ data:
   output_dir: 'data'
 
 model:
-  input_dim: 384
-  latent_dim: 128
-  num_codes: 256
-  commitment_cost: 0.25
+  input_dim: 384        # VQ in
+  latent_dim: 128       # VQ out 
+  num_codes: 256        # Codebook Size
+  commitment_cost: 0.25 # VQ Loss Weight
 
 training:
   batch_size: 256
