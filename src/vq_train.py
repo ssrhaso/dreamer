@@ -35,6 +35,9 @@ def compute_codebook_stats(
 ):
     """ COMPUTE CODEBOOK USAGE STATISTICS (TOKEN FREQUENCY) """
     
+    # FLATTEN TOKENS (HANDLES SPATIAL DIMENSIONS)
+    tokens = tokens.flatten()
+    
     # UNIQUE CODES
     unique_codes = torch.unique(tokens)
     num_used = len(unique_codes)
