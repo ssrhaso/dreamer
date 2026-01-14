@@ -1,7 +1,7 @@
 # CONFIG FOR VQ-VAE MODEL
 
 data:
-  embeddings_path: 'data/embeddings_ALE_Pong-v5_dinov2_base.npy'
+  embeddings_path: 'data/embeddings_ALE_Pong-v5_cnn.npy'
   output_dir: 'data'
 
 model:
