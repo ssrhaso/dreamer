@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 # IMPORT FROZEN VISION ENCODER 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from encoder import FrozenDinoV2Encoder
+from encoder_v1 import FrozenDinoV2Encoder
 
 def load_replay_buffer(
     path : str
