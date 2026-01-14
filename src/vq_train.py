@@ -122,7 +122,6 @@ def train_vq(
     # INIT MODEL
     model = VQTokenizer(
         input_dim = 384,
-        latent_dim = latent_dim,
         num_codes = num_codes,
         commitment_cost = commitment_cost,
     ).to(device)
