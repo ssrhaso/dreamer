@@ -19,12 +19,20 @@ class EmbeddingDataset(Dataset):
     """
     
     # CONSTRUCTOR
-    def __init__(self, embeddings_path : str,):
-        self.embeddings = np.load(embeddings_path).astype(np.float32)
+    def __init__(self, embeddings_paths : list,):
+        all_embeddings = []
+        
+        for path in embeddings_paths:
+            emb = np.load(path).astype(np.float32)
+            print(f"LOADED {path}, SHAPE: {emb.shape}")
+            all_embeddings.append(emb)
+            
+        self.embeddings = np.concatenate(all_embeddings, axis=0)
         # L2 normalize to unit length
+        
         norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True) + 1e-8
         self.embeddings = self.embeddings / norms
-        print(f"LOADED EMBEDDINGS FROM {embeddings_path}, LENGTH: {len(self.embeddings)}")
+        print(f"LOADED EMBEDDINGS FROM {embeddings_paths}, LENGTH: {len(self.embeddings)}")
     
     # SAMPLING METHODS
     def __len__(self):
@@ -67,7 +75,7 @@ def compute_codebook_stats(
 
 
 def train_vq(
-    embeddings_path : str = "data/embeddings_ALE_Pong-v5_dinov2_base.npy",
+    embeddings_paths : list  = None,
     output_dir : str = "checkpoints",
     num_codes : int = 256,
     latent_dim : int = 128,
@@ -96,7 +104,7 @@ def train_vq(
           f"\n VAL SPLIT : {val_split}")
     
     # LOAD DATASET
-    dataset = EmbeddingDataset(embeddings_path)
+    dataset = EmbeddingDataset(embeddings_paths)
     
     # TRAIN-VAL SPLIT
     val_size = int(len(dataset) * val_split)
@@ -273,12 +281,32 @@ def train_vq(
     
     """ SAVE FINAL TOKENS AND STATS """
     print(f"SAVING FINAL TOKENS AND TRAINING STATS...")
-    tokens_path = os.path.join(output_dir, 'vq_tokens_100k.npy')
-    model_path = os.path.join(output_dir, 'vq_model_final.pth')
-    stats_path = os.path.join(output_dir, 'vq_stats.json')
+    games = ['ALE_Pong-v5', 'ALE_Breakout-v5', 'ALE_MsPacman-v5']
     
-    np.save(tokens_path, all_tokens)
-    torch.save(model.state_dict(), model_path)
+    for i, (game, emb_path) in enumerate(zip(games, embeddings_paths)):
+        game_embeddings = np.load(emb_path).astype(np.float32)
+        norms = np.linalg.norm(game_embeddings, axis=1, keepdims=True) + 1e-8
+        game_embeddings = game_embeddings / norms
+        
+        game_loader = DataLoader(
+            torch.utils.data.TensorDataset(torch.from_numpy(game_embeddings)),
+            batch_size=batch_size,
+            num_workers=2,
+        )
+        
+        game_tokens = []
+        with torch.no_grad():
+            for (batch,) in tqdm(game_loader, desc=f"Tokenizing {game}"):
+                batch = batch.to(device).unsqueeze(1).unsqueeze(2)
+                tokens = model.encode(batch)
+                game_tokens.append(tokens.cpu())
+    
+        game_tokens = torch.cat(game_tokens, dim=0).numpy()
+        tokens_path = os.path.join(output_dir, f'vq_tokens_{game}.npy')
+        np.save(tokens_path, game_tokens)
+        print(f" Saved tokens for {game} to {tokens_path} (Total Tokens: {len(game_tokens)})")
+    
+    model_path = os.path.join(output_dir, 'vq_model_final.pth')
     
     stats = {
         'train_losses': [float(l) for l in train_losses],
@@ -297,18 +325,28 @@ def train_vq(
         }
     }
     
+    model_path = os.path.join(output_dir, 'vq_model_final.pth')
+    stats_path = os.path.join(output_dir, 'vq_stats.json')
+    
+    # Save stats
     with open(stats_path, 'w') as f:
         json.dump(stats, f, indent=2)
-    print(f"TRAINING COMPLETE. SAVED TOKENS TO {tokens_path}, MODEL TO {model_path}, STATS TO {stats_path}")
+        
+    print(f"TRAINING COMPLETE.")
+    print(f" Model: {model_path}")
+    print(f" Stats: {stats_path}")
+    print(f" Tokens saved separately for each game in: {output_dir}")
     
     return model, all_tokens, stats
 
+
+""" ENTRY """
 if __name__ == "__main__":
     
     config = load_config("configs/vq.yaml")
     
     train_vq(
-        embeddings_path = config['data']['embeddings_path'],
+        embeddings_paths = config['data']['embeddings_paths'],  
         output_dir = config['training'].get('save_dir', 'checkpoints'),
         num_codes = config['model']['num_codes'],
         latent_dim = config['model']['latent_dim'],
@@ -319,4 +357,5 @@ if __name__ == "__main__":
         val_split = config['training']['val_split'],
         seed = config['seed'],
     )
+
 
