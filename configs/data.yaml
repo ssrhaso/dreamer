@@ -1,5 +1,8 @@
 data:
-  env_name: "ALE/Pong-v5"
+  env_name: "ALE/PongNoFrameskip-v4"
+  # "ALE/BreakoutNoFrameskip-v4"
+  # "ALE/SpaceInvadersNoFrameskip-v4"
+  
   total_transitions: 100000
   num_episodes: 200
   
