@@ -19,12 +19,13 @@ Trained lightweight CNN Encoder + discrete tokens + attention dynamics = sample-
 * **Unified Embedding Space:** A single 1.8M param encoder learned consistent temporal features across 3 distinct games (Norm: 1.0, Temporal Ratio: 0.22 avg).
 * **Shared Vocabulary:** Trained one VQ codebook (256 codes) on 300k combined frames.
 * **Zero-Shot Transfer?** No, but "few-shot adaptation" proven: 100% codebook usage and high perplexity (~240) achieved on the joint dataset in just 2 epochs. This validates that our discrete latent space is robust enough to represent diverse game physics simultaneously.
-* 
 
-**Key Insight:** Strong temporal structure (0.260) matters more than semantic correlation for discrete world models. The encoder's ability to group consecutive frames enabled perfect VQ codebook utilization, validating the contrastive learning approach.
+**Addressing the Generalization Bottleneck:**
+
+While our single-layer VQ achieved 100% codebook utilization, detailed validation and literature review revealed a "transfer gap": the model learned disjoint vocabularies for each game (only 13% shared tokens) and suffered from low reconstruction fidelity (0.40 cosine similarity), effectively blurring fine-grained game details. To solve this, we are upgrading to a **Hierarchical Residual VQ (HRVQ)** architecture—a technique adapted from SOTA video generation models (HiTVideo, 2025). By stacking 3 VQ layers with residual connections, we explicitly separate universal physics (Layer 0, coarse) from game-specific mechanics (Layer 1) and pixel-level details (Layer 2). This novel architectural pivot aims to force cross-game transfer learning while boosting reconstruction quality to >0.85, enabling a truly unified discrete world model.
+
 
 ## Lessons Learned
 
 - We initially projected DINOv2 embeddings from 384 to 128 dimensions using an MLP, but found this introduced unnecessary information loss. We removed the projection and fed 384-dimensional embeddings directly to the VQ layer, improving codebook utilization from 77/256 to 153/256.
 - Frozen DINOv2 embeddings failed on Atari with only 0.08 correlation to game states (paddle position: 0.05, ball position: 0.02-0.15). While temporal consistency (0.53) showed DINOv2 detects motion, it couldn't capture position—the foundation model's natural image features don't transfer to synthetic game graphics. This 10x performance gap vs trainable CNNs demonstrates when vision foundation models fail: domain shift matters more than model scale. We pivoted to a trained CNN, proving task-specific encoders outperform general-purpose foundations on domain-shifted tasks.
--
