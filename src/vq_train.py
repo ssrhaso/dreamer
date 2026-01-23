@@ -74,6 +74,41 @@ def compute_codebook_stats(
     }
 
 
+def compute_hierarchical_codebook_stats(
+    all_tokens : list, 
+    num_codes : int = 256,
+):
+    """ COMPUTE CODEBOOK STATS FOR HIERARCHICAL TOKENS """
+    layer_stats = []  # List, not dict!
+    for layer_idx, tokens in enumerate(all_tokens):
+        
+        # FLATTEN
+        tokens = tokens.flatten()
+        
+        # UNIQUE CODES
+        unique_codes = torch.unique(tokens)
+        num_used = len(unique_codes)
+        
+        # FREQUENCY COUNTS
+        token_counts = torch.bincount(tokens, minlength = num_codes).float()
+        token_probs = token_counts / token_counts.sum()
+        
+        # PERPLEXITY (EFFECTIVE NUMBER OF CODES USED)
+        token_probs_nonzero = token_probs[token_probs > 0]
+        entropy = -torch.sum(token_probs_nonzero * torch.log(token_probs_nonzero))
+        perplexity = torch.exp(entropy).item()
+        
+        # STATS
+        layer_stats.append({
+            'layer' : layer_idx,
+            'num_used_codes': int(num_used),
+            'total_codes': num_codes,
+            'usage_ratio': float(num_used / num_codes),
+            'perplexity': float(perplexity),
+        })
+        
+    return layer_stats
+    
 def train_vq(
     embeddings_paths : list  = None,
     output_dir : str = "checkpoints",
@@ -128,14 +163,27 @@ def train_vq(
     print(f"TRAINING SAMPLES : {len(train_dataset)} | VALIDATION SAMPLES: {len(val_dataset)}")
     
     # INIT MODEL
-    model = VQTokenizer(
-        input_dim = 384,
-        num_codes = num_codes,
-        commitment_cost = commitment_cost,
-    ).to(device)
     
-    # INITIALIZE CODEBOOK FROM DATA SAMPLES (no projection)
-    print(f"INITIALIZING CODEBOOK FROM DATA...")
+    model = HRVQTokenizer(
+        input_dim = 384,
+        num_codes_per_layer = num_codes,
+        num_layers = 3,
+        commitment_costs= [0.15, 0.25, 0.40],
+        decay = 0.99,
+        epsilon = 1e-5,
+    ).to(device)
+    print(f"HIERARCHICAL VQ : {model.num_layers} LAYERS, {num_codes} CODES PER LAYER")
+    print(f"TOTAL CAPACITY: {model.total_capacity} BITS")
+    
+    # ARCHIVE SINGLE-LAYER BASELINE
+    # model = VQTokenizer(
+    #     input_dim = 384,
+    #     num_codes = num_codes,
+    #     commitment_cost = commitment_cost,
+    # ).to(device)
+    
+    # INITIALIZE ALL LAYER CODEBOOKS FROM DATA SAMPLES
+    print(f"INITIALIZING {model.num_layers} CODEBOOKS FROM DATA...")
     with torch.no_grad():
         init_batch = next(iter(train_loader)).to(device)
         init_batch = init_batch.unsqueeze(1).unsqueeze(2)
@@ -146,9 +194,11 @@ def train_vq(
             repeats = (num_codes + init_samples.size(0) - 1) // init_samples.size(0)
             init_samples = init_samples.repeat(repeats, 1)[:num_codes]
         
-        model.vq.codebook.weight.data.copy_(init_samples)
-        model.vq.ema_weight.copy_(init_samples)
-    print(f"CODEBOOK INITIALIZED")
+        # Initialize all layers with the same data (they'll diverge during training)
+        for layer_idx, vq_layer in enumerate(model.vq_layers):
+            vq_layer.codebook.weight.data.copy_(init_samples)
+            vq_layer.ema_weight.copy_(init_samples)
+    print(f"ALL {model.num_layers} CODEBOOKS INITIALIZED")
     
     # NO OPTIMIZER NEEDED - EMA updates codebook without gradients
     print(f"NOTE: Using EMA updates (no gradient-based training)")
@@ -176,10 +226,10 @@ def train_vq(
             batch = batch.unsqueeze(1).unsqueeze(2)
             
             # Forward pass (EMA updates codebook automatically)
-            z_quantized, loss, tokens = model(batch)
+            z_quantized, loss, all_tokens = model(batch)
             
             train_loss += loss.item()
-            train_tokens_all.append(tokens.cpu().detach())
+            train_tokens_all.append([tok.cpu().detach() for tok in all_tokens])
             
             # UPDATE PROGRESS BAR
             pbar.set_postfix({'Loss': f"{loss.item():.4f}"})
@@ -196,30 +246,42 @@ def train_vq(
                 batch = batch.to(device)
                 # Add spatial dimensions: [B, 384] -> [B, 1, 1, 384]
                 batch = batch.unsqueeze(1).unsqueeze(2)
-                z_quantized, loss, tokens = model(batch)
+                z_quantized, loss, all_tokens = model(batch)
                 val_loss += loss.item()
-                val_tokens_all.append(tokens.cpu())
+                val_tokens_all.append([tok.cpu().detach() for tok in all_tokens])
         
         avg_val_loss = val_loss / len(val_loader)
         val_losses.append(avg_val_loss)
         
-        """ CODEBOOK ANALYSIS """
-        train_tokens_all = torch.cat(train_tokens_all, dim=0)
-        val_tokens_all = torch.cat(val_tokens_all, dim=0)
+        """ CODEBOOK ANALYSIS (PER LAYER) """
+        # Reorganize: list of batches -> list of layers
+        train_tokens_by_layer = [
+            torch.cat([batch[i] for batch in train_tokens_all], dim=0)
+            for i in range(model.num_layers)
+        ]
+        val_tokens_by_layer = [
+            torch.cat([batch[i] for batch in val_tokens_all], dim=0)
+            for i in range(model.num_layers)
+        ]
         
-        train_stats = compute_codebook_stats(
-            train_tokens_all, num_codes = num_codes
+        train_stats = compute_hierarchical_codebook_stats(
+            train_tokens_by_layer, num_codes=num_codes
         )
-        val_stats = compute_codebook_stats(
-            val_tokens_all, num_codes = num_codes
-        )   
+        val_stats = compute_hierarchical_codebook_stats(
+            val_tokens_by_layer, num_codes=num_codes
+        )
+        
         print(f"Epoch {epoch+1}/{num_epochs} Summary:"
-                f"\n TRAIN LOSS: {avg_train_loss:.4f} | VAL LOSS: {avg_val_loss:.4f}"
-                f"\n TRAIN CODEBOOK USAGE: {train_stats['num_used_codes']}/{num_codes} "
-                f"({train_stats['usage_ratio']*100:.2f}%), PERPLEXITY: {train_stats['perplexity']:.2f}"
-                f"\n VAL CODEBOOK USAGE  : {val_stats['num_used_codes']}/{num_codes} "
-                f"({val_stats['usage_ratio']*100:.2f}%), PERPLEXITY: {val_stats['perplexity']:.2f}"
-            )
+              f"\n TRAIN LOSS: {avg_train_loss:.4f} | VAL LOSS: {avg_val_loss:.4f}")
+        
+        for layer_idx in range(model.num_layers):
+            print(f" Layer {layer_idx} TRAIN: {train_stats[layer_idx]['num_used_codes']}/{num_codes} "
+                  f"({train_stats[layer_idx]['usage_ratio']*100:.2f}%), "
+                  f"Perplexity: {train_stats[layer_idx]['perplexity']:.2f}")
+        for layer_idx in range(model.num_layers):
+            print(f" Layer {layer_idx} VAL  : {val_stats[layer_idx]['num_used_codes']}/{num_codes} "
+                  f"({val_stats[layer_idx]['usage_ratio']*100:.2f}%), "
+                  f"Perplexity: {val_stats[layer_idx]['perplexity']:.2f}")
         
         """ SAVE CHECKPOINT IF BEST """
         if avg_val_loss < best_val_loss:
@@ -243,14 +305,18 @@ def train_vq(
             batch = batch.to(device)
             # Add spatial dimensions: [B, 384] -> [B, 1, 1, 384]
             batch = batch.unsqueeze(1).unsqueeze(2)
-            tokens = model.encode(batch)
-            all_tokens.append(tokens.cpu())
+            all_tokens_batch = model.encode(batch)  # Returns list of 3 token arrays
+            all_tokens.append([tok.cpu() for tok in all_tokens_batch])
     
-    all_tokens = torch.cat(all_tokens, dim=0).numpy()
+    # Reorganize: list of batches -> list of layers
+    all_tokens = [
+        torch.cat([batch[i] for batch in all_tokens], dim=0).numpy()
+        for i in range(model.num_layers)
+    ]
     
     """ FINAL STATISTICS """
-    final_stats = compute_codebook_stats(
-        torch.from_numpy(all_tokens), num_codes = num_codes
+    final_stats = compute_hierarchical_codebook_stats(
+        [torch.from_numpy(layer_tokens) for layer_tokens in all_tokens], num_codes = num_codes
     )
     
     with torch.no_grad():
@@ -266,18 +332,21 @@ def train_vq(
         }
         
     # HEALTH CHECK
-    print(f"FINAL CODEBOOK USAGE: {final_stats['num_used_codes']}/{num_codes} "
-          f"({final_stats['usage_ratio']*100:.2f}%), PERPLEXITY: {final_stats['perplexity']:.2f}"
-    )
+    for layer_idx in range(model.num_layers):
+        print(f"FINAL CODEBOOK USAGE LAYER {layer_idx}: {final_stats[layer_idx]['num_used_codes']}/{num_codes} "
+              f"({final_stats[layer_idx]['usage_ratio']*100:.2f}%), PERPLEXITY: {final_stats[layer_idx]['perplexity']:.2f}"
+        )
     print(f"QUANTIZED LATENT STATS: MEAN={quantized_stats['mean']:.4f}, "
           f"STD={quantized_stats['std']:.4f}, MIN={quantized_stats['min']:.4f}, MAX={quantized_stats['max']:.4f}"
     )
     
-    # COLLAPSE WARNING
-    if final_stats['num_used_codes'] < num_codes * 0.1:
-        print("WARNING: CODEBOOK COLLAPSE DETECTED! FEW CODES USED.")
+    # COLLAPSE WARNING (check any layer)
+    collapsed_layers = [i for i in range(model.num_layers) 
+                       if final_stats[i]['num_used_codes'] < num_codes * 0.1]
+    if collapsed_layers:
+        print(f"WARNING: CODEBOOK COLLAPSE DETECTED IN LAYERS {collapsed_layers}!")
     else:
-        print("CODEBOOK USAGE HEALTHY.")
+        print("CODEBOOK USAGE HEALTHY ACROSS ALL LAYERS.")
     
     """ SAVE FINAL TOKENS AND STATS """
     print(f"SAVING FINAL TOKENS AND TRAINING STATS...")
@@ -298,13 +367,20 @@ def train_vq(
         with torch.no_grad():
             for (batch,) in tqdm(game_loader, desc=f"Tokenizing {game}"):
                 batch = batch.to(device).unsqueeze(1).unsqueeze(2)
-                tokens = model.encode(batch)
-                game_tokens.append(tokens.cpu())
-    
-        game_tokens = torch.cat(game_tokens, dim=0).numpy()
-        tokens_path = os.path.join(output_dir, f'vq_tokens_{game}.npy')
-        np.save(tokens_path, game_tokens)
-        print(f" Saved tokens for {game} to {tokens_path} (Total Tokens: {len(game_tokens)})")
+                all_tokens_batch = model.encode(batch)  # List of 3 token arrays
+                game_tokens.append([tok.cpu() for tok in all_tokens_batch])
+        
+        # Reorganize: list of batches -> list of layers
+        game_tokens_by_layer = [
+            torch.cat([batch[i] for batch in game_tokens], dim=0).numpy()
+            for i in range(model.num_layers)
+        ]
+        
+        # Save tokens for each layer separately
+        for layer_idx, layer_tokens in enumerate(game_tokens_by_layer):
+            tokens_path = os.path.join(output_dir, f'vq_tokens_{game}_layer{layer_idx}.npy')
+            np.save(tokens_path, layer_tokens)
+            print(f" Saved Layer {layer_idx} tokens for {game}: {tokens_path} ({len(layer_tokens)} tokens)")
     
     model_path = os.path.join(output_dir, 'vq_model_final.pth')
     
