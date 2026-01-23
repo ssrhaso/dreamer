@@ -131,7 +131,9 @@ class HRVQTokenizer(nn.Module):
         
         # LAYER SPECIFIC COMMITMENT COSTS (research-backed progression)
         if commitment_costs is None:
-            commitment_costs = [0.15, 0.25, 0.40]  # Coarse→Fine (based on MAGVIT/SoundStream)
+            commitment_costs = [0.05, 0.25, 0.60]  # Coarse→Fine(MORE AGGRESSIVE)
+            
+            # commitment_costs = [0.15, 0.25, 0.40]  # Coarse→Fine (based on MAGVIT/SoundStream)
     
         assert len(commitment_costs) == num_layers, "Length of commitment_costs must match num_layers"
                     

@@ -168,7 +168,8 @@ def train_vq(
         input_dim = 384,
         num_codes_per_layer = num_codes,
         num_layers = 3,
-        commitment_costs= [0.15, 0.25, 0.40],
+        # commitment_costs=[0.15, 0.25, 0.40],  # Based on MAGVIT/SoundStream
+        commitment_costs=[0.05, 0.25, 0.60],  # Aggressive coarse→fine for hierarchical learning
         decay = 0.99,
         epsilon = 1e-5,
     ).to(device)
