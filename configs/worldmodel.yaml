@@ -1,0 +1,40 @@
+# BASELINE IMPLEMENTATION OF WORLD MODEL
+
+model:
+  # ARCHITECTURE - STORM [Zhang et al. 2023] 
+  d_model: 384
+  n_layers: 6
+  n_heads: 6
+  d_ff: 1536  # 4x d_model
+  dropout: 0.1
+  max_seq_len: 256  # 64 timesteps × 4 tokens
+  
+  # TOKEN SPACES
+  num_codes: 256  # HRVQ codebook size
+  num_actions: 9  # Max Atari action space
+  
+  # HIERARCHICAL RSVQ LOSS WEIGHTS 
+  layer_weights: [1.0, 0.5, 0.1]  # L0 > L1 > L2
+
+
+# TRAINING
+training: 
+  batch_size: 32
+  seq_len: 64
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  grad_clip: 1.0
+  num_epochs: 50
+
+
+# DATA
+data:
+  games: ['ALE_Pong-v5', 'ALE_Breakout-v5', 'ALE_MsPacman-v5']
+  tokens_dir: 'checkpoints/rsvq_tokens'
+  replay_dir: 'data'
+  val_split: 0.05
+
+# LOGGING
+logging:
+  save_dir: 'checkpoints/world_model'
+  save_every: 10
