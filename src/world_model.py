@@ -26,10 +26,29 @@ class WorldModelConfig:
     num_codes : int = 256           # NUMBER OF CODEBOOK ENTRIES                    - HRVQ Codebook Size
     num_actions : int = 9           # NUMBER OF POSSIBLE ACTIONS                    - ATARI100K has 9 discrete actions
     
-    # HIERARCHICAL LOSS (NOVELTY)
-    layer_weights : List[float] = None
+    # HIERARCHICAL LOSS (NOVELTY) 
     
+    # e.g.: layer_weights = [1.0, 0.5, 0.1] for 3-layer HRVQ: L2, L1 and L0. 
+    # HIGHER WEIGHTING FOR L2 (FINAL PIXEL RECONSTRUCTION), LOWER FOR L0 (COARSE , ABSTRACT REPRESENTATION)
+    layer_weights : Optional[List[float]] = None
+    
+    
+    def __post_init__(self):
+        """ INITIALISE DERIVED PARAMETERS """
+        if self.layer_weights is None:
+            self.layer_weights = [1.0, 0.5, 0.1]
+        
+        # VALIDATE HEAD DIMENSIONS
+        assert self.d_model % self.n_heads == 0, f"d_model {self.d_model} must be divisible by n_heads {self.n_heads}"
+        
+        # VALIDATE SEQUENCE LENGTH
+        assert self.max_seq_len % 4 == 0 , f"max_seq_len {self.max_seq_len} must be divisible by 4 (tokens per time step)"
 
+
+    
+    
+    
+    
 class TokenEmbedding(nn.Module):
     """ EMBED HIERARCHICAL (HRVQ) TOKENS + ACTIONS into TRANSFORMER SEQUENCE"""
     

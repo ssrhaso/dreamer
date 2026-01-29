@@ -16,6 +16,10 @@ model:
     layer_weights : None
 
 
+
+
+
+
 # TRAINING
 training: 
   batch_size: 32
@@ -37,3 +41,4 @@ data:
 logging:
   save_dir: 'checkpoints/world_model'
   save_every: 10
+  
