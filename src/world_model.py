@@ -137,7 +137,41 @@ class TokenEmbedding(nn.Module):
         actions : torch.tensor,     # SHAPE: (B, T) - ACTIONS
     ) -> torch.tensor:              # SHAPE: (B, T*4, d_model) - 4 TOKENS PER TIME STEP
         """ FORWARD PASS  """
-        pass
+        
+        B, T, _ = tokens.shape
+        device = tokens.device
+        
+        
+        # 1. EMBED Each component
+        emb_level0 = self.token_embeds[0](tokens[..., 0]) 
+        emb_level1 = self.token_embeds[1](tokens[..., 1])
+        emb_level2 = self.token_embeds[2](tokens[..., 2])
+        emb_action = self.action_embed(actions)
+        
+        # 2. ADD LEVEL EMBEDDING
+        level_ids = torch.arange(4, device = device)  
+        level_embeds = self.level_embed(level_ids)
+        
+        emb_level0 = emb_level0 + level_embeds[0]
+        emb_level1 = emb_level1 + level_embeds[1]
+        emb_level2 = emb_level2 + level_embeds[2]
+        emb_action = emb_action + level_embeds[3]
+        
+        # 3. INTERLEAVE TOKENS PER TIME STEP
+        seq = torch.stack(
+            [emb_level0, emb_level1, emb_level2, emb_action], 
+            dim = 2
+        )
+        
+        seq = seq.reshape(B, T * 4, self.config.d_model)  # (B, T*4, d_model)
+        
+        # 4. ADD POSITIONAL EMBEDDING
+        positions = torch.arange(T * 4, device = device)
+        seq = seq + self.pos_embed(positions)
+        
+        return seq
+        
+     
         
         
         
