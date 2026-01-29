@@ -16,6 +16,17 @@ from pathlib import Path
 @dataclass 
 class WorldModelConfig:
     """ CONFIG MATCHING configs/worldmodel.yaml """
+    
+    d_model : int  = 384
+    n_layers : int = 6
+    n_heads : int = 6
+    d_ff : int    = 1536
+    dropout : float = 0.1
+    max_seq_len : int = 256
+    num_codes : int = 256
+    num_actions : int = 9
+    layer_weights : List[float] = None
+    
 
 class TokenEmbedding(nn.Module):
     """ EMBED HIERARCHICAL (HRVQ) TOKENS + ACTIONS into TRANSFORMER SEQUENCE"""
