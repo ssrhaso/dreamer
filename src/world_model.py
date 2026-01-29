@@ -137,7 +137,7 @@ class TokenEmbedding(nn.Module):
         actions : torch.tensor,     # SHAPE: (B, T) - ACTIONS
     ) -> torch.tensor:              # SHAPE: (B, T*4, d_model) - 4 TOKENS PER TIME STEP
         """ FORWARD PASS  """
-        
+        pass
         
         
         
