@@ -92,11 +92,76 @@ class WorldModelConfig:
     
 class TokenEmbedding(nn.Module):
     """ EMBED HIERARCHICAL (HRVQ) TOKENS + ACTIONS into TRANSFORMER SEQUENCE"""
-    pass
+
+
+    def __init__(
+        self,
+        config : WorldModelConfig,
+    ):
+        super().__init__()
+        self.config = config
+    
+    
+        """ LOOKUPS  """
+        
+        # 1. TOKEN Lookups - (3 tables for L0, L1, L2)
+        self.token_embeds = nn.ModuleList([
+            nn.Embedding(
+                num_embeddings = config.num_codes, 
+                embedding_dim = config.d_model
+            ) 
+            for _ in range(3) # L0, L1, L2
+        ])
+        
+        # 2. ACTION Lookup - (1 table for all actions)
+        self.action_embed = nn.Embedding(
+            num_embeddings = config.num_actions,
+            embedding_dim = config.d_model
+        )
+        
+        # 3. LEVEL Lookup - (1 table for L0, L1, L2 + ACTION)
+        self.level_embed = nn.Embedding(
+            num_embeddings = 4,   # LEVELS: L0, L1, L2 + ACTION
+            embedding_dim = config.d_model
+        )
+        
+        # 4. POSITION Lookup - (1 table for all positions)
+        self.pos_embed = nn.Embedding(
+            num_embeddings = config.max_seq_len,
+            embedding_dim = config.d_model
+        )
+        
+    def forward(
+        self,
+        tokens : torch.tensor,      # SHAPE: (B, T, 3) - 3 LAYERS
+        actions : torch.tensor,     # SHAPE: (B, T) - ACTIONS
+    ) -> torch.tensor:              # SHAPE: (B, T*4, d_model) - 4 TOKENS PER TIME STEP
+        """ FORWARD PASS  """
+        
+        
+        
+        
+        
+        
+        
+    
+    
+        
 
 def hierarchical_causal_mask():
     """ CAUSAL MASK  """
     pass
+
+
+
+
+
+
+
+
+
+
+
 
 class TransformerBlock(nn.Module):
     """ STANDARD TRANSFORMER BLOCK  """
@@ -110,16 +175,10 @@ def hierarchical_loss():
     """ HIERARCHICAL LOSS FUNCTION  """
     pass
 
+
+
 if __name__ == "__main__":
-    # Test config loading
-    config = WorldModelConfig.from_yaml('configs/worldmodel.yaml')
-    print(config)
-    
-    # Validate derived properties
-    print(f"\nDerived properties:")
-    print(f"  Dims per head: {config.d_model // config.n_heads}")
-    print(f"  Timesteps: {config.max_seq_len // 4}")
-    print(f"  FFN expansion: {config.d_ff / config.d_model:.1f}x")
+    pass
 
     
    
