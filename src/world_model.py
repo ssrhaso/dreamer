@@ -17,14 +17,16 @@ from pathlib import Path
 class WorldModelConfig:
     """ CONFIG MATCHING configs/worldmodel.yaml """
     
-    d_model : int  = 384
-    n_layers : int = 6
-    n_heads : int = 6
-    d_ff : int    = 1536
-    dropout : float = 0.1
-    max_seq_len : int = 256
-    num_codes : int = 256
-    num_actions : int = 9
+    d_model : int  = 384            # EMBEDDING DIMENSION (WIDTH OF NN)             - HRVQ EMBEDDING DIMENSION
+    n_layers : int = 6              # NUMBER OF TRANSFORMER BLOCKS (DEPTH OF NN)    - (Kaplan et al. 2020)
+    n_heads : int = 6               # NUMBER OF ATTENTION HEADS                     - (Vaswani et al. 2017) - standard rule of = d_model / 64
+    d_ff : int    = 1536            # DIMENSION OF FEEDFORWARD NETWORK              - (Vaswani et al. 2017) - standard rule of = 4 * d_model
+    dropout : float = 0.1           # DROPOUT RATE                                  - (Devlin et al. 2017)  - BERT, GPT, STORM use 0.1       
+    max_seq_len : int = 256         # MAXIMUM SEQUENCE LENGTH                       - ~ 65k positions of memory, Fits T4 GPU safely
+    num_codes : int = 256           # NUMBER OF CODEBOOK ENTRIES                    - HRVQ Codebook Size
+    num_actions : int = 9           # NUMBER OF POSSIBLE ACTIONS                    - ATARI100K has 9 discrete actions
+    
+    # HIERARCHICAL LOSS (NOVELTY)
     layer_weights : List[float] = None
     
 
