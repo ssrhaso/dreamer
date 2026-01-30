@@ -174,17 +174,20 @@ class TokenEmbedding(nn.Module):
      
         
         
-        
-        
-        
-        
+def hierarchical_causal_mask(
+    seq_len : int,
+    device : torch.device
+):
+    """ CAUSAL MASK TO ENSURE MODEL CANNOT 'SEE' FUTURE TOKENS (TRIANGULAR MASK SINCE TOKENS ARE INTERLEAVED SEQUENTIALLY) """
     
+    mask = torch.triu(torch.ones(size= (seq_len, seq_len), device = device), diagonal = 1).bool()
     
-        
-
-def hierarchical_causal_mask():
-    """ CAUSAL MASK  """
-    pass
+    # 0 = ALLOW ATTENTION
+    # -inf = BLOCK ATTENTION
+    
+    mask = mask.masked_fill(mask == 1, float('-inf'))
+    
+    return mask
 
 
 
