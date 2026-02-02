@@ -91,7 +91,16 @@ class WorldModelConfig:
     
     
 class TokenEmbedding(nn.Module):
-    """ EMBED HIERARCHICAL (HRVQ) TOKENS + ACTIONS into TRANSFORMER SEQUENCE"""
+    """ EMBED HIERARCHICAL (HRVQ) TOKENS + ACTIONS into INTERLEAVED TRANSFORMER SEQUENCE
+    
+    INPUT EXAMPLE:
+    obs_sequence = [L0_t0, L1_t0, L2_t0, L0_t1, L1_t1, L2_t1, ...]
+    action_sequence = [A_t0, A_t1, ...]
+    
+    OUTPUT EXAMPLE:
+    sequence = [L0_t0, L1_t0, L2_t0, A_t0, L0_t1, L1_t1, L2_t1, A_t1, ...]
+           └──── timestep 0 ────┘  └──── timestep 1 ────┘
+    """
 
 
     def __init__(
@@ -107,16 +116,16 @@ class TokenEmbedding(nn.Module):
         # 1. TOKEN Lookups - (3 tables for L0, L1, L2)
         self.token_embeds = nn.ModuleList([
             nn.Embedding(
-                num_embeddings = config.num_codes, 
-                embedding_dim = config.d_model
+                num_embeddings = config.num_codes,  # 256
+                embedding_dim = config.d_model      # 384
             ) 
             for _ in range(3) # L0, L1, L2
         ])
         
         # 2. ACTION Lookup - (1 table for all actions)
         self.action_embed = nn.Embedding(
-            num_embeddings = config.num_actions,
-            embedding_dim = config.d_model
+            num_embeddings = config.num_actions,  # 9
+            embedding_dim = config.d_model        # 384
         )
         
         # 3. LEVEL Lookup - (1 table for L0, L1, L2 + ACTION)
@@ -177,27 +186,71 @@ class TokenEmbedding(nn.Module):
 def hierarchical_causal_mask(
     seq_len : int,
     device : torch.device
-):
+) -> torch.tensor:
     """ CAUSAL MASK TO ENSURE MODEL CANNOT 'SEE' FUTURE TOKENS (TRIANGULAR MASK SINCE TOKENS ARE INTERLEAVED SEQUENTIALLY) """
+    assert seq_len % 4 == 0, f"Sequence Length {seq_len} must be 4 tokens per timestep (L0, L1, L2, ACTION)"
     
-    mask = torch.triu(torch.ones(size= (seq_len, seq_len), device = device), diagonal = 1).bool()
+    # 1. STANDARD CAUSAL MASK (NO HIERARCHY), example:
+    """ 
+    F T T T 
+    F F T T
+    F F F T
+    F F F F
+    """
+    # TRUE = BLOCK ATTENTION, FALSE = ALLOW ATTENTION
+    mask = torch.triu(
+        torch.ones(size = (seq_len, seq_len), device = device), 
+        diagonal = 1
+    ).bool()
     
-    # 0 = ALLOW ATTENTION
-    # -inf = BLOCK ATTENTION
+    # 2. REFINE within each timestep
+    num_timesteps = seq_len // 4
     
-    mask = mask.masked_fill(mask == 1, float('-inf'))
+    for t in range(num_timesteps):
+        base = t * 4
+        
+        # POS 0 (L0) - SEES : SELF
+        
+        # POS 1 (L1) - SEES : SELF, L0(SAME TIMESTEP)
+        mask[base + 1, base + 0] = False
+        
+        # POS 2 (L2) - SEES : SELF, L0(SAME TIMESTEP), L1(SAME TIMESTEP)
+        mask[base + 2, base] = False
+        mask[base + 2, base + 1] = False
+        
+        # POS 3 (ACTION) - SEES : SELF, L0(SAME TIMESTEP), L1(SAME TIMESTEP), L2(SAME TIMESTEP)
+        mask[base + 3, base] = False
+        mask[base + 3, base + 1] = False
+        mask[base + 3, base + 2] = False
+        
+        
+
+    # 3. CROSS TIMESTEP HIERARCHY
+    for t_query in range(num_timesteps):
+        for t_key in range(t_query):
+            base_query = t_query * 4
+            base_key = t_key * 4
+            
+            # BLOCK SEEING PAST
+            for position in [1, 2, 3]:
+                mask[base_query + position, base_key + 1] = True   # BLOCK L1, L2, ACTION seeing L1 (past)
+                mask[base_query + position, base_key + 2] = True   # BLOCK L1, L2, ACTION seeing L2 (past)
+                
+                
     
-    return mask
-
-
-
-
-
-
-
-
-
-
+    
+    # 4. CONVERT TO ATTENTION FORMAT (FROM BOOL)
+    
+    float_mask = torch.zeros(size = (seq_len, seq_len), device = device)
+    float_mask = float_mask.masked_fill(mask = mask, value = float('-inf'))
+    
+    return float_mask
+    
+    
+        
+    
+    
+    
 
 
 class TransformerBlock(nn.Module):
@@ -215,7 +268,18 @@ def hierarchical_loss():
 
 
 if __name__ == "__main__":
-    pass
+    # HIERARCHICAL MASK TEST
+    mask = hierarchical_causal_mask(8, torch.device('cpu'))
+    print("Hierarchical Causal Mask (8 positions = 2 timesteps):")
+    print(mask)
+    
+    # Verify specific properties
+    assert mask[1, 0] == 0, "L1 should see L0"
+    assert mask[1, 2] == float('-inf'), "L1 should NOT see L2"
+    assert mask[2, 0] == 0, "L2 should see L0"
+    assert mask[2, 1] == 0, "L2 should see L1"
+    assert mask[0, 4] == float('-inf'), "Cannot see future timesteps"
+    print("\nAll assertions passed")
 
     
    
