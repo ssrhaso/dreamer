@@ -274,7 +274,7 @@ if __name__ == "__main__":
     print(mask)
     
     # Verify specific properties
-    # Test the hierarchical blocking (your novel contribution!)
+    # Test the hierarchical blocking
     assert mask[5, 1] == float('-inf'), "L1_t1 should NOT see L1_t0 (hierarchical block)"
     assert mask[5, 2] == float('-inf'), "L1_t1 should NOT see L2_t0 (hierarchical block)"
     assert mask[6, 1] == float('-inf'), "L2_t1 should NOT see L1_t0 (hierarchical block)"
