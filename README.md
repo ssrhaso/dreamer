@@ -36,7 +36,10 @@ We successfully implemented and trained a 3-layer Hierarchical Residual VQ archi
 
 Building a discrete token world model combining TWISTER (ICLR 2025) and DreamerV4 innovations. **ATTEMPTING CONTRIBUTION** : first per-layer expert counts in world modeling, expected 2.8x inference speedup with 40% parameter reduction, temporal hierarchy matching semantic hierarchy, +15% long-horizon accuracy. Target: ~11M parameter model achieving <5ms inference for PPO imagination rollouts, enabling model-based RL with 10x sample efficiency over model-free baselines.
 
+Implemented Hierarchical Causal Mask
+
 ## Lessons Learned
 
 - We initially projected DINOv2 embeddings from 384 to 128 dimensions using an MLP, but found this introduced unnecessary information loss. We removed the projection and fed 384-dimensional embeddings directly to the VQ layer, improving codebook utilization from 77/256 to 153/256.
 - Frozen DINOv2 embeddings failed on Atari with only 0.08 correlation to game states (paddle position: 0.05, ball position: 0.02-0.15). While temporal consistency (0.53) showed DINOv2 detects motion, it couldn't capture position - the foundation model's natural image features don't transfer to synthetic game graphics. This 10x performance gap vs trainable CNNs demonstrates when vision foundation models fail: domain shift matters more than model scale. We pivoted to a trained CNN, proving task-specific encoders outperform general-purpose foundations on domain-shifted tasks. This was expected due to the difference in content DINOv2 is trained on in comparision to ATARI images.
+
