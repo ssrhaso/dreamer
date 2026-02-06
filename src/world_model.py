@@ -303,7 +303,33 @@ class TransformerBlock(nn.Module):
         X > NORM > ATTENTION > RESIDUAL > NORM > FFN > RESIDUAL > Y
         """
         
+        # 1. PRE-NORM (BEFORE ATTENTION)
+        x_norm = self.ln1(x)
         
+        # 2. ATTENTION 
+        attn_out, _ = self.attn(
+            query = x_norm,         # WHAT WE ARE LOOKING FOR (ALL AFTER MASKING)
+            key = x_norm,           # WHAT WE ARE COMPARING TO (ALL AFTER MASKING)
+            value = x_norm,         # WHAT WE ARE USING TO UPDATE (ALL AFTER MASKING)
+            attn_mask = mask,       # MASK FOR CAUSALITY + HIERARCHY
+            need_weights = False    # NO WEIGHTS (MEMORY SAVER)
+        )
+        
+        # 3. RESIDUAL (ATTENTION OUT)
+        x = x + attn_out 
+        
+        # 4. PRE-NORM (BEFORE FFN)
+        x_norm = self.ln2(x)
+        
+        # 5. FEEDFORWARD NETWORK (MLP)
+        ffn_out = self.ffn(x_norm)
+        
+        # 6. RESIDUAL (FFN OUT)
+        x = x + ffn_out
+        
+        return x
+        
+    
 
 
 class HierarchicalWorldModel(nn.Module):
