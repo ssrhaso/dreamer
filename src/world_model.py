@@ -265,7 +265,6 @@ class TransformerBlock(nn.Module):
         
         """ 6 HEAD MULTI-HEAD SELF-ATTENTION LAYER
         'Group Reflection' layer """
-        
         self.attn = nn.MultiheadAttention(
             embed_dim = config.d_model, # 384 DIM
             num_heads = config.n_heads, # 6 HEADS
@@ -276,7 +275,6 @@ class TransformerBlock(nn.Module):
         
         """ FEEDFORWARD NETWORK (POSITION-WISE) 
         'Self Reflection' layer """
-        
         self.ffn = nn.Sequential(
             nn.Linear(in_features = config.d_model, out_features = config.d_ff),  
             # 384 -> 1536 (EXAPND FOR COMPLEX FEATURES)
@@ -291,16 +289,21 @@ class TransformerBlock(nn.Module):
         )
         
         
+        """ PRE-NORM LAYER NORMALIZATION (STABILISE TRAINING) """
+        self.ln1 = nn.LayerNorm(normalized_shape = config.d_model) # BEFORE ATTENTION
+        self.ln2 = nn.LayerNorm(normalized_shape = config.d_model) # BEFORE FFN
         
-        
-        
-        
-        
-        
-    
-    
-    pass
 
+    def forward(
+        self,
+        x : torch.tensor,         # SHAPE: (B, seq_len, 384) 
+        mask : torch.tensor       # SHAPE: (seq_len, seq_len) - HCAUSAL MASK
+    ) -> torch.tensor:            # SHAPE: (B, seq_len, 384) 
+        """ FORWARD PASS THROUGH 1 TRANSFORMER BLOCK
+        X > NORM > ATTENTION > RESIDUAL > NORM > FFN > RESIDUAL > Y
+        """
+        
+        
 
 
 class HierarchicalWorldModel(nn.Module):
