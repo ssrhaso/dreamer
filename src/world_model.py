@@ -379,8 +379,10 @@ class HierarchicalWorldModel(nn.Module):
         actions : torch.tensor,     # SHAPE: (B, T) - ACTIONS
     ) -> Tuple[torch.tensor, torch.tensor, torch.tensor]:  
         """ FORWARD PASS THROUGH WORLD MODEL """
-        pass
-    
+        
+        B, T, _ = tokens.shape
+        
+        
     
 def hierarchical_loss():
     """ HIERARCHICAL LOSS FUNCTION  """
