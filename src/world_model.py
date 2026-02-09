@@ -437,25 +437,27 @@ def hierarchical_loss(
     
     """ 2. CROSS ENTROPY LOSS FOR EACH LAYER (COMPUTE SEPARATELY) """
     crossentropy_l0 = F.cross_entropy(
-        input = logits_0.reshape(-1, num_codes), 
-        target = groundtruth_l0.reshape(-1),
+        input = logits_0.reshape(-1, num_codes),  # SQUASH (B + T, 256)
+        target = groundtruth_l0.reshape(-1),      # FLATTEN 
     )    
     
     crossentropy_l1 = F.cross_entropy(
-        input = logits_l1.reshape(-1, num_codes),
+        input = logits_l1.reshape(-1, num_codes), # SQUASH (B + T, 256)
         target = groundtruth_l1.reshape(-1),
     )
     
     crossentropy_l2 = F.cross_entropy(
-        input = logits_l2.reshape(-1, num_codes),
-        target = groundtruth_l2.reshape(-1),
+        input = logits_l2.reshape(-1, num_codes), # SQUASH (B + T, 256)
+        target = groundtruth_l2.reshape(-1),      
     )
     
     
-    
-    
-    
-
+    """ 3. WEIGHTED HIERARCHICAL SUM OF LOSSES """
+    total_loss = (
+        layer_weights[0] * crossentropy_l0 +
+        layer_weights[1] * crossentropy_l1 +
+        layer_weights[2] * crossentropy_l2
+    )
 
 
 if __name__ == "__main__":
