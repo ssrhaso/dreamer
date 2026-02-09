@@ -417,9 +417,17 @@ class HierarchicalWorldModel(nn.Module):
         
         
     
-def hierarchical_loss():
+def hierarchical_loss(
+    logits_l0 : torch.tensor,
+    logits_l1 : torch.tensor,
+    logits_l2 : torch.tensor,
+    tokens : torch.tensor,
+    layer_weights : list[float] = [1.0, 0.5, 0.1],
+) -> Tuple[torch.tensor, dict]:
     """ HIERARCHICAL LOSS FUNCTION  """
-    pass
+    
+    
+    
 
 
 
