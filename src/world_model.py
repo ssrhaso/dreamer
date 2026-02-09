@@ -425,15 +425,31 @@ def hierarchical_loss(
     layer_weights : list[float] = [1.0, 0.5, 0.1],      
 ) -> Tuple[torch.tensor, dict]:
     """ HIERARCHICAL LOSS FUNCTION  """
-    
     num_codes = logits_l0.size(-1)  # 256
     
-    # 1. GROUND TRUTH FOR EACH LAYER (TARGET / MARK SCHEME)
+    """ 1. GROUND TRUTH FOR EACH LAYER (TARGET / MARK SCHEME) """
     groundtruth_l0 = tokens[:, 1:, 0]   # L0 TARGETS (PHYSICS, COARSE) - (B, T-1, LAYER 0 CODES)
     groundtruth_l1 = tokens[:, :, 1]    # L1 TARGETS (MECHANICS, MEDIUM) - (B, T, LAYER 1 CODES)
     groundtruth_l2 = tokens[:, :, 2]    # L2 TARGETS (OBJECTS, FINE) - (B, T, LAYER 2 CODES)
     
     logits_0 = logits_l0[:, :-1, :]  # DROP OFF LAST TIME STEP (NO FUTURE)
+    
+    
+    """ 2. CROSS ENTROPY LOSS FOR EACH LAYER (COMPUTE SEPARATELY) """
+    crossentropy_l0 = F.cross_entropy(
+        input = logits_0.reshape(-1, num_codes), 
+        target = groundtruth_l0.reshape(-1),
+    )    
+    
+    crossentropy_l1 = F.cross_entropy(
+        input = logits_l1.reshape(-1, num_codes),
+        target = groundtruth_l1.reshape(-1),
+    )
+    
+    crossentropy_l2 = F.cross_entropy(
+        input = logits_l2.reshape(-1, num_codes),
+        target = groundtruth_l2.reshape(-1),
+    )
     
     
     
