@@ -53,6 +53,8 @@ Building a discrete token world model that operates on HRVQ token sequences, dra
 - **Transformer block:** Standard pre-norm transformer block (MHSA + FFN + residuals + LayerNorm)
 - **Config + data pipeline:** Full YAML config with training hyperparameters, token data pre-extracted for all 3 games × 3 layers
 
+Recent additions include the full `HierarchicalWorldModel` scaffold with stacked blocks, layer-specific token prediction heads (L0/L1/L2), and a cached hierarchical mask to avoid recomputation on long sequences. A weighted hierarchical loss is also wired to emphasize coarse dynamics over fine detail, aligning the training signal with the HRVQ abstraction ladder.
+
 **Remaining:** Assembling blocks into full model with prediction heads (token/reward/done), loss function, and training loop.
 
 ## Lessons Learned
