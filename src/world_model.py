@@ -336,6 +336,7 @@ class HierarchicalWorldModel(nn.Module):
         self,
         config : WorldModelConfig,
     ):
+        """ SETUP """
         super().__init__()
         self.config = config
         
@@ -378,9 +379,41 @@ class HierarchicalWorldModel(nn.Module):
         tokens : torch.tensor,      # SHAPE: (B, T, 3) - HRVQ TOKENS , 3 LAYERS [L0, L1, L2]
         actions : torch.tensor,     # SHAPE: (B, T) - ACTIONS
     ) -> Tuple[torch.tensor, torch.tensor, torch.tensor]:  
-        """ FORWARD PASS THROUGH WORLD MODEL """
+        """ FORWARD PASS THROUGH WORLD MODEL (EXECUTION) """
         
+        
+        """ PRE PROCESSING"""
+        # 1. UNPACK TUPLE, B = BATCH SIZE, T = TIMESTEPS
         B, T, _ = tokens.shape
+        
+        # 2. EMBEDDING LAYER
+        x = self.embedding(tokens = tokens, actions = actions)  # (B, T*4, d_model)
+        
+        # 3. GET MASK 
+        mask = self._get_mask(seq_len = x.size(1), device = x.device)  # (T*4, T*4)
+        
+        """ MAIN PASS THROUGH TRANSFORMER BLOCKS """
+        for block in self.blocks:
+            x = block(x, mask = mask)  # (B, T*4, d_model)
+        
+        # FINAL NORM
+        x = self.ln_final(x)  # (B, T*4, d_model)
+        
+        """ EXTRACT PREDICTIONS FOR EACH LAYER [L0, L1, L2] FROM THE TRANSFORMER OUTPUT SEQUENCE (INTERLEAVED) """
+        
+        # ALL BATCHES, TOKENS BY POSITION, ALL FEATURES
+        
+        action_positions = x[:, 3::4, :]  # GRAB ACTION TOKENS (EVERY 4TH POSITION STARTING FROM 3)
+        l0_positions = x[:, 0::4, :]      # GRAB L0 TOKENS (EVERY 4TH POSITION STARTING FROM 0)
+        l1_positions = x[:, 1::4, :]      # GRAB L1 TOKENS (EVERY 4TH POSITION STARTING FROM 1)
+        
+        """ APPLY PREDICTION HEADS """
+        logits_l0 = self.headl0(action_positions)  # (B, T, 256 codes) - PREDICT L0 (PHYSICS, COARSE)
+        logits_l1 = self.headl1(l0_positions)      # (B, T, 256 codes) - PREDICT L1 (MECHANICS, MEDIUM)
+        logits_l2 = self.headl2(l1_positions)      # (B, T, 256 codes) - PREDICT L2 (OBJECTS, FINE)
+        
+        return logits_l0, logits_l1, logits_l2
+        
         
         
     
