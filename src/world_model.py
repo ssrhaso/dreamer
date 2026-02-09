@@ -418,13 +418,24 @@ class HierarchicalWorldModel(nn.Module):
         
     
 def hierarchical_loss(
-    logits_l0 : torch.tensor,
-    logits_l1 : torch.tensor,
-    logits_l2 : torch.tensor,
-    tokens : torch.tensor,
-    layer_weights : list[float] = [1.0, 0.5, 0.1],
+    logits_l0 : torch.tensor,                           # PREDICTIONS FROM WORLD MODEL
+    logits_l1 : torch.tensor,                           # PREDICTIONS FROM WORLD MODEL
+    logits_l2 : torch.tensor,                           # PREDICTIONS FROM WORLD MODEL
+    tokens : torch.tensor,                              # GROUND TRUTH HRVQ TOKENS
+    layer_weights : list[float] = [1.0, 0.5, 0.1],      
 ) -> Tuple[torch.tensor, dict]:
     """ HIERARCHICAL LOSS FUNCTION  """
+    
+    num_codes = logits_l0.size(-1)  # 256
+    
+    # 1. GROUND TRUTH FOR EACH LAYER (TARGET / MARK SCHEME)
+    groundtruth_l0 = tokens[:, 1:, 0]   # L0 TARGETS (PHYSICS, COARSE) - (B, T-1, LAYER 0 CODES)
+    groundtruth_l1 = tokens[:, :, 1]    # L1 TARGETS (MECHANICS, MEDIUM) - (B, T, LAYER 1 CODES)
+    groundtruth_l2 = tokens[:, :, 2]    # L2 TARGETS (OBJECTS, FINE) - (B, T, LAYER 2 CODES)
+    
+    logits_0 = logits_l0[:, :-1, :]  # DROP OFF LAST TIME STEP (NO FUTURE)
+    
+    
     
     
     
