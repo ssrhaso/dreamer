@@ -434,12 +434,12 @@ def hierarchical_loss(
     groundtruth_l1 = tokens[:, :, 1]    # L1 TARGETS (MECHANICS, MEDIUM) - (B, T, LAYER 1 CODES)
     groundtruth_l2 = tokens[:, :, 2]    # L2 TARGETS (OBJECTS, FINE) - (B, T, LAYER 2 CODES)
     
-    logits_0 = logits_l0[:, :-1, :]  # DROP OFF LAST TIME STEP (NO FUTURE)
+    logits_l0 = logits_l0[:, :-1, :]  # DROP OFF LAST TIME STEP (NO FUTURE)
     
     
     """ 2. CROSS ENTROPY LOSS FOR EACH LAYER (COMPUTE SEPARATELY) """
     crossentropy_l0 = F.cross_entropy(
-        input = logits_0.reshape(-1, num_codes),  # SQUASH (B + T, 256)
+        input = logits_l0.reshape(-1, num_codes),  # SQUASH (B + T, 256)
         target = groundtruth_l0.reshape(-1),      # FLATTEN 
     )    
     
