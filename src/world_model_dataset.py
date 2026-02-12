@@ -45,13 +45,19 @@ class WorldModelDataset(Dataset):
             assert len(tokens_3layer) == N, f"Token and action lengths do not match for game {game}!"
             
             """ 3. STORE GAME DATA """
-            
             self.all_tokens.append(tokens_3layer) 
             self.all_actions.append(actions)
             
             """ 4. COMPUTE VALID START INDICES (RESPECTING EPISODE BOUNDARIES) """
+            cumulativesum = np.concatenate([ [0], np.cumsum(dones.astype(bool)) ]) # (100001,)
+            num_candidates = N - self.seq_len + 1
+            boundaries = cumulativesum[self.seq_len - 1 : N] - cumulativesum[:num_candidates]
+            valid_idx = np.where(boundaries == 0)[0] # indices where no episode boundary is crossed
             
-            pass
+            for s in valid_idx:
+                self.valid_starts.append((game_idx, int(s)))
+            print(f" {N} TIMESTEPS, {len(valid_idx)} VALID STARTS")
+            
             
             
     def __len__(self):
