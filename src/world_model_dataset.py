@@ -80,6 +80,10 @@ def create_dataloders(
         config = yaml.safe_load(f)
     
     dataset = WorldModelDataset(
+        games = config['data']['games'],
+        tokens_dir = config['data']['tokens_dir'],
+        replay_dir = config['data']['replay_dir'],
+        seq_len = config['training']['seq_len'],
     )
     
     train_loader = DataLoader(
